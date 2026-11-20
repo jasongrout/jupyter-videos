@@ -1,0 +1,11 @@
+# The cut, the edit and the tools.
+numpy
+pillow
+packaging
+
+# Optional: the local model of the AI shot (ai/).
+# llama-cpp-python
+# huggingface_hub
+
+# Optional: the transcription check of voiced lines (voice/stt.py).
+# moonshine-voice

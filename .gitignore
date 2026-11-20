@@ -1,0 +1,9 @@
+# Takes, voice clips, music, renders and the servers' folders.
+/work/
+node_modules/
+__pycache__/
+# Generated from cut/fonts by cut/make_fonts_css.py.
+/cut/fonts.css
+.env
+*.mp4
+*.wav

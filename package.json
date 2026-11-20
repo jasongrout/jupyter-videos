@@ -1,0 +1,12 @@
+{
+  "name": "jupyter-release-video",
+  "private": true,
+  "description": "Scripted takes, narration and cut of the Jupyter release videos",
+  "scripts": {
+    "take": "node harness/run_take.js",
+    "browser": "PLAYWRIGHT_SKIP_BROWSER_GC=1 playwright-core install chromium-headless-shell"
+  },
+  "devDependencies": {
+    "playwright-core": "1.64.0"
+  }
+}
