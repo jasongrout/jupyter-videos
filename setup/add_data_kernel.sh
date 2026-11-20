@@ -7,7 +7,7 @@
 set -euo pipefail
 WHAT="${1:?server name, such as 4.7.0b2}"
 PY="${2:?a Python with ipykernel and pandas}"
-BASE="${RV_BASE:-${RV_WORK:-$(cd "$(dirname "$0")/.." && pwd)/work}/runtime}"
+BASE="${RV_BASE:-$(cd "$(dirname "$0")/.." && pwd)/work/runtime}"
 K="$BASE/jupyter-data-$WHAT/kernels/python3-data"
 mkdir -p "$K"
 cat > "$K/kernel.json" <<EOF

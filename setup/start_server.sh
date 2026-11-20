@@ -10,7 +10,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 WHAT="$1"
 PORT="$2"
-BASE="${RV_BASE:-${RV_WORK:-$HERE/../work}/runtime}"
+BASE="${RV_BASE:-$HERE/../work/runtime}"
 mkdir -p "$BASE"
 BASE="$(cd "$BASE" && pwd)"
 export RV_BASE="$BASE"

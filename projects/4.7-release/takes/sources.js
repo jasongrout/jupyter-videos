@@ -1,6 +1,6 @@
 'use strict';
 // The debugger's Kernel Sources panel lists modules as a tree, by package.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'sources',

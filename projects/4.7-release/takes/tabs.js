@@ -1,6 +1,6 @@
 'use strict';
 // Ctrl+Alt+1..8 switch to the tab at that position, Ctrl+Alt+9 to the last.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'tabs',

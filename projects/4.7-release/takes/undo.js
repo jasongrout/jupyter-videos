@@ -1,7 +1,7 @@
 'use strict';
 // Undo the deletion of a running cell: it comes back as it was, and a
 // notification offers the outputs that arrived since.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 async function outputLines(page) {
   return page.evaluate(() => {

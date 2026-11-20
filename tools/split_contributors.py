@@ -1,15 +1,16 @@
-"""Split the contributors of the 4.7 cycle into first-time and returning, from the "Contributors to this release" lists.
+"""Split the contributors of a release cycle into first-time and returning, from the "Contributors to this release" lists.
 
-Usage: python split_contributors.py
+Usage: python split_contributors.py <out.json> [--lab 4.7 4.6.0] [--notebook 7.7 7.6.0] [--lite 0.9 0.8.0]
 
-The changelogs come from the main branch of the three repositories, through `gh api`, into $RV_WORK/changelogs.
-The 4.7 video used the files of 19 November 2026. For another release, change the versions in the split() calls.
+Each option gives the minor version of the cycle and the last release before it: a contributor is first-time when
+no list up to that release names them. The changelogs come from the main branch of the three repositories, through
+`gh api`, into work/changelogs; delete them there to fetch them again. The 4.7 video used the files of
+19 November 2026. The output has the contributors of JupyterLab ("lab") and of all three projects ("all").
 """
-import base64, json, os, re, subprocess
+import argparse, base64, json, os, re, subprocess
 from pathlib import Path
 from packaging.version import Version
-EDITS = Path(__file__).resolve().parents[1] / "edit"
-LOGS = Path(os.environ.get("RV_WORK", Path(__file__).resolve().parents[1] / "work")) / "changelogs"
+LOGS = Path(os.environ.get("RV_CHANGELOGS", Path(__file__).resolve().parents[1] / "work" / "changelogs"))
 SOURCES = {"lab-changelog.md": ("jupyterlab/jupyterlab", "CHANGELOG.md"),
            "lab-changelog-v3.md": ("jupyterlab/jupyterlab", "docs/source/getting_started/changelog_v3.md"),
            "nb-changelog.md": ("jupyter/notebook", "CHANGELOG.md"),
@@ -54,9 +55,21 @@ def split(paths, cycle, last_before):
     print(paths[0], count, "sections, without names:", empty)
     return now, before
 
-lab_now, lab_before = split(["lab-changelog.md", "lab-changelog-v3.md"], (4, 7), "4.6.0")
-nb_now, nb_before = split(["nb-changelog.md"], (7, 7), "7.6.0")
-lite_now, lite_before = split(["lite-changelog.md"], (0, 9), "0.8.0")
+ap = argparse.ArgumentParser()
+ap.add_argument("out")
+ap.add_argument("--lab", nargs=2, default=["4.7", "4.6.0"])
+ap.add_argument("--notebook", nargs=2, default=["7.7", "7.6.0"])
+ap.add_argument("--lite", nargs=2, default=["0.9", "0.8.0"])
+args = ap.parse_args()
+
+
+def cycle(minor):
+    return tuple(int(x) for x in minor.split("."))
+
+
+lab_now, lab_before = split(["lab-changelog.md", "lab-changelog-v3.md"], cycle(args.lab[0]), args.lab[1])
+nb_now, nb_before = split(["nb-changelog.md"], cycle(args.notebook[0]), args.notebook[1])
+lite_now, lite_before = split(["lite-changelog.md"], cycle(args.lite[0]), args.lite[1])
 # The contributors of the release: everyone in the lists of its pre-releases and releases.
 lab_list = lab_now
 all_list = lab_now | nb_now | lite_now
@@ -69,4 +82,4 @@ print("lab first:", " ".join(lab_first))
 print("all first, not in lab first:", sorted(set(all_first) - set(lab_first), key=key), "| lab first, returning elsewhere:", sorted(set(lab_first) - set(all_first), key=key))
 json.dump({"lab": {"first": lab_first, "returning": sorted(lab_list - set(lab_first), key=key)},
            "all": {"first": all_first, "returning": sorted(all_list - set(all_first), key=key)}},
-          open(EDITS / "contributors-split.json", "w"), indent=1)
+          open(args.out, "w"), indent=1)

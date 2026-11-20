@@ -1,6 +1,6 @@
 'use strict';
 // Read-only cells show a lock in the cell toolbar; a click offers to unlock.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'lock',

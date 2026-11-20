@@ -1,6 +1,6 @@
 'use strict';
 // MathJax 4.1: \\ breaks lines in display math, long inline formulas wrap.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'math',

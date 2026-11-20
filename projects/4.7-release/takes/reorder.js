@@ -1,6 +1,6 @@
 'use strict';
 // Sidebar sections can be reordered: Running panel, Terminals above Kernels.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'reorder',

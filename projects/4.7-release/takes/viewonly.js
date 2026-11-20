@@ -1,6 +1,6 @@
 'use strict';
 // A notebook from a file that is not writable opens in view-only mode.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'viewonly',

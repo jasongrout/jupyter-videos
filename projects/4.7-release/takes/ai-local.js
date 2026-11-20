@@ -3,7 +3,7 @@
 // (scripts/local_llm_server.py, Gemma 4 E4B on http://localhost:8080/v1). A cell fails on a CSV file with comment
 // lines; the cell goes into the chat, the answer replaces the cell, and the next cell shows the table.
 const fs = require('fs');
-const { BASE } = require('../paths');
+const { BASE } = require('../../../harness/paths');
 const QUESTION = 'How do I make pandas skip the # comment lines in this file?';
 
 const NOTEBOOK = {

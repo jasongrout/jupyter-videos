@@ -1,6 +1,6 @@
 """Write the edit file of the narrated cut.
 
-Usage: python make_edit.py <out.json> [<race 4.6 take> <race 4.7 take>] [--nb-lite] [--voice <folder>]
+Usage: python edit.py <out.json> [<race 4.6 take> <race 4.7 take>] [--nb-lite] [--voice <folder>]
 
 --nb-lite adds the Notebook 7.7, JupyterLite 0.9 and AI chapters (the combined cut). --voice names the folder of
 voice clips in $RV_WORK/voice (piper by default). TESTING below switches the outro between the betas and the release.
@@ -15,66 +15,21 @@ import os
 import sys
 from pathlib import Path
 
-WORK = Path(os.environ.get("RV_WORK", Path(__file__).resolve().parents[1] / "work"))
-BASE = Path(os.environ.get("RV_BASE", WORK / "runtime"))
-# JupyterLab's own icons, from a checkout or the build copy of setup/build_main.sh.
-ICONS = Path(os.environ.get("JUPYTERLAB_SRC", BASE / "main")) / "packages/ui-components/style/icons"
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+# The takes, voice clips and music of this project.
+WORK = Path(os.environ.get("RV_WORK", REPO / "work" / HERE.name))
+sys.path.insert(0, str(REPO / "cut"))
+from cards import addendum_card, also, area, areas_card, end_card, jupyter_area, opening_card  # noqa: E402
+
 # Until the final releases, the voice says "available for testing" and the end card gives the pre-release commands.
 TESTING = True
-
-
-def icon(name):
-    svg = (ICONS / name).read_text()
-    return svg.replace("<svg ", '<svg width="34" height="34" ', 1) if "width=" not in svg.split(">")[0] else svg
-
-
-def area(icon_file, title, items):
-    rows = "".join(f"<div>{x}</div>" for x in items)
-    return f'<div class="area"><h2>{icon(icon_file)}{title}</h2>{rows}</div>'
-
-
-JUPYTER_LOGO = '<svg viewBox="0 0 152 165"><path fill="#F37726" d="M76.021 140.163c-32.64 0-61.145-11.927-75.942-29.58 5.51 15.84 15.781 29.567 29.39 39.278a80.17 80.17 0 0 0 46.57 14.929 80.17 80.17 0 0 0 46.57-14.929c13.61-9.711 23.88-23.437 29.391-39.278-14.833 17.653-43.338 29.58-75.979 29.58m-.005-114.832c32.64 0 61.146 11.927 75.943 29.58a80.9 80.9 0 0 0-29.391-39.278A80.16 80.16 0 0 0 75.998.705a80.16 80.16 0 0 0-46.57 14.928A80.9 80.9 0 0 0 .038 54.912c14.832-17.617 43.338-29.58 75.978-29.58"/></svg>'
-
-
-def jupyter_area(title, items):
-    rows = "".join(f"<div>{x}</div>" for x in items)
-    return f'<div class="area"><h2>{JUPYTER_LOGO}{title}</h2>{rows}</div>'
-
-
-# The GitHub mark (Octicons "mark-github"), for the link to the repositories.
-GITHUB_MARK = '<svg viewBox="0 0 16 16"><path fill="#1f2328" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>'
-
-
-def outro(install, repos, managers, contributors):
-    """The end card: install commands and ways to support Project Jupyter on the left, the credits on the right."""
-    if len(repos) == 1:
-        stars = f'<div><b>Star on GitHub:</b> {repos[0]}</div>'
-    else:
-        stars = '<div><b>Star on GitHub:</b><div class="repos">' + "".join(f"<div>{r}</div>" for r in repos) + "</div></div>"
-    left = (
-        '<div class="lockup">WORDMARK<div class="ver">4.7</div></div>'
-        + "".join(f'<div><span class="cmd">{c}</span></div>' for c in install)
-        + '<div class="support"><div class="support-head">Support Project Jupyter</div>'
-        + '<div class="support-item">' + JUPYTER_LOGO + '<div><b>Join the Jupyter Foundation (for organizations):</b> jupyterfoundation.org/join</div></div>'
-        + '<div class="support-item">' + GITHUB_MARK + stars + '</div>'
-        + '<div class="support-item">' + icon("sidebar/users.svg") + '<div><b>Join the community and contribute:</b> jupyter.org/community</div></div>'
-        + '</div>'
-    )
-    def names(users):
-        return '<div class="names">' + " ".join(f"<span>@{u}</span>" for u in users) + "</div>"
-    right = (
-        '<div class="thanks">Thank you to the contributors, reviewers, and everyone who tested the betas and reported issues.</div>'
-        + ('<div class="managers"><b>Release managers:</b>' + "".join(f"<div>{m}</div>" for m in managers) + '</div>' if len(managers) > 1
-           else f'<div class="managers"><b>Release manager:</b> {managers[0]}</div>')
-        + '<div class="names-head">First-time contributors</div>' + names(contributors["first"])
-        + '<div class="names-head">Returning contributors and maintainers</div>' + names(contributors["returning"])
-    )
-    return f'<div class="outro two"><div class="col">{left}</div><div class="col credits">{right}</div></div>'
+THANKS = "Thank you to the contributors, reviewers, and everyone who tested the betas and reported issues."
 
 
 # First-time contributors appear in no "Contributors to this release" list up to JupyterLab 4.6.0, Notebook 7.6.0
-# and JupyterLite 0.8.0 (scripts/split_contributors.py).
-CONTRIBUTORS = json.loads((Path(__file__).parent / "contributors-split.json").read_text())
+# and JupyterLite 0.8.0 (tools/split_contributors.py).
+CONTRIBUTORS = json.loads((HERE / "contributors-split.json").read_text())
 
 if TESTING:
     # The betas are on these conda-forge labels (the beta-4.x and beta-7.x branches of the feedstocks).
@@ -84,22 +39,15 @@ if TESTING:
 else:
     INSTALL_LAB = ["pip install --upgrade jupyterlab", "conda install -c conda-forge jupyterlab"]
     INSTALL_NB = ["pip install --upgrade jupyterlab notebook", "conda install -c conda-forge jupyterlab notebook"]
-OUTRO = outro(INSTALL_LAB, ["github.com/jupyterlab/jupyterlab"], ["Mike Krassowski (JupyterLab)"], CONTRIBUTORS["lab"])
-OUTRO_NB = outro(INSTALL_NB, ["github.com/jupyterlab/jupyterlab", "github.com/jupyter/notebook", "github.com/jupyterlite/jupyterlite"],
-                 ["Mike Krassowski (JupyterLab)", "Jeremy Tuloup (Notebook and JupyterLite)"], CONTRIBUTORS["all"])
+OUTRO = end_card("4.7", INSTALL_LAB, ["github.com/jupyterlab/jupyterlab"], ["Mike Krassowski (JupyterLab)"], CONTRIBUTORS["lab"], THANKS)
+OUTRO_NB = end_card("4.7", INSTALL_NB, ["github.com/jupyterlab/jupyterlab", "github.com/jupyter/notebook", "github.com/jupyterlite/jupyterlite"],
+                    ["Mike Krassowski (JupyterLab)", "Jeremy Tuloup (Notebook and JupyterLite)"], CONTRIBUTORS["all"], THANKS)
 AVAILABLE = "available for testing" if TESTING else "available now"
 
-INTRO = (
-    '<div class="intro"><div class="intro-kicker">' + JUPYTER_LOGO + 'Release highlights</div>'
-    '<div class="intro-title">Introducing<br>JupyterLab&nbsp;4.7</div></div>'
-)
+INTRO = opening_card(["Introducing", "JupyterLab&nbsp;4.7"])
 
 # The cut with Notebook 7.7 and JupyterLite 0.9: "the point 7 releases" names JupyterLab 4.7 and Notebook 7.7 together.
-INTRO_NB = (
-    '<div class="intro"><div class="intro-kicker">' + JUPYTER_LOGO + 'Release highlights</div>'
-    '<div class="intro-title">JupyterLab&nbsp;4.7<br>Notebook&nbsp;7.7</div>'
-    '<div class="intro-sub">and JupyterLite 0.9</div></div>'
-)
+INTRO_NB = opening_card(["JupyterLab&nbsp;4.7", "Notebook&nbsp;7.7"], sub="and JupyterLite 0.9")
 
 NB_LITE_CHAPTER = [
     {"take": "nb-help", "from": "beat:type-0.6", "to": "flash:end-0.15", "chapter": "Notebook and JupyterLite",
@@ -131,33 +79,31 @@ AI_LOCAL_SPEED = [{"from": "beat:settings+0.2", "to": "beat:drag-0.3", "x": 2},
                   {"from": "llm:received", "to": "llm:first", "x": LLM_SPEED["wait"], "badge": False},
                   {"from": "llm:first", "to": "llm:done", "x": LLM_SPEED["stream"], "badge": False}]
 
-AI_CARD = (
-    '<div class="areas"><h1>Get started with AI in Jupyter</h1>'
-    + jupyter_area("Jupyter AI", [
+AI_CARD = areas_card("Get started with AI in Jupyter", [
+    jupyter_area("Jupyter AI", [
         "Chat with agents such as Claude Code, Codex and OpenCode in JupyterLab",
         '<span class="mono">pip install jupyter-ai</span>',
-    ])
-    + jupyter_area("Jupyter AI Lite", [
+    ]),
+    jupyter_area("Jupyter AI Lite", [
         "Jupyternaut in the browser, in JupyterLab, Notebook and JupyterLite",
         '<span class="mono">pip install jupyter-ai-lite</span>',
         '<span class="url">Demo: jupyterlab.github.io/jupyter-ai-lite</span>',
-    ])
-    + area("statusbar/terminal.svg", "Your agent in a terminal", [
+    ]),
+    area("statusbar/terminal.svg", "Your agent in a terminal", [
         "Coding agents work in JupyterLab through its MCP server",
         '<span class="mono">pip install jupyter-ai-core</span>',
-    ])
-    + '<div class="also">Resources</div>'
-    + area("statusbar/kernel.svg", "Local models", [
+    ]),
+    also("Resources"),
+    area("statusbar/kernel.svg", "Local models", [
         "Ollama, LiteLLM and other OpenAI-compatible servers on your machine",
         '<span class="url">jupyter-ai-lite.readthedocs.io/<br>en/latest/ollama/</span>',
-    ])
-    + area("toolbar/link.svg", "Get started", [
+    ]),
+    area("toolbar/link.svg", "Get started", [
         '<span class="url">jupyter-ai.readthedocs.io/en/stable/<br>getting-started.html</span>',
-    ])
-    + "</div>"
-)
+    ]),
+])
 
-AI_TITLE = '<div class="card"><div class="addendum">AI, when you want it</div></div>'
+AI_TITLE = addendum_card("AI, when you want it")
 
 # After the end card, as an addendum: the video first seems to skip AI.
 AI_CHAPTER = [
@@ -214,55 +160,53 @@ def with_nb_lite(seq):
         out.append(item)
     return out
 
-MORE = (
-    '<div class="areas"><h1>And more in JupyterLab 4.7</h1>'
-    + area("filetype/notebook.svg", "Notebooks", [
+MORE = areas_card("And more in JupyterLab 4.7", [
+    area("filetype/notebook.svg", "Notebooks", [
         "Right-click an image to copy it",
         "Copy the ID of a cell, or a link to it",
         "Selecting a collapsed heading selects its section",
-    ])
-    + area("filetype/folder.svg", "Files and editors", [
+    ]),
+    area("filetype/folder.svg", "Files and editors", [
         "Paste into the selected folder",
         "Links to folders in Markdown open them",
         "Julia highlighting from Pluto.jl",
-    ])
-    + area("filetype/console.svg", "Console and debugger", [
+    ]),
+    area("filetype/console.svg", "Console and debugger", [
         "Rename code consoles",
         "Faster completions in the Debug Console",
         "Debug Console completions for more languages",
-    ])
-    + area("filetype/settings.svg", "Settings", [
+    ]),
+    area("filetype/settings.svg", "Settings", [
         'Find settings by tag, such as <span class="mono">tag:performance</span>',
         "Search finds editor options, such as rulers",
         "Hide the notebook toolbar from the View menu",
-    ])
-    + area("toolbar/fast-forward.svg", "Performance", [
+    ]),
+    area("toolbar/fast-forward.svg", "Performance", [
         "Faster switching between tabs",
         "84 KB less JavaScript at startup",
         "Faster edits in large notebooks",
-    ])
-    + area("sidebar/running.svg", "Terminal, server and touch", [
+    ]),
+    area("sidebar/running.svg", "Terminal, server and touch", [
         "Terminal links ask before they open",
         "Errors in configuration files stop the server",
         "Menus respond to taps on touch screens again",
-    ])
-    + '<div class="also">Built on JupyterLab 4.7</div>'
-    + jupyter_area("Notebook 7.7", [
+    ]),
+    also("Built on JupyterLab 4.7"),
+    jupyter_area("Notebook 7.7", [
         "Help opens in a panel at the bottom",
         "Open a notebook without a kernel",
         "New terminals start in the current folder",
-    ])
-    + jupyter_area("JupyterLite 0.9", [
+    ]),
+    jupyter_area("JupyterLite 0.9", [
         "Disable extensions in the Extension Manager",
         "Links can open the Simple Interface",
         "An optional drive shows the site's configuration",
-    ])
+    ]),
     # The link sits in the last row, above the bottom of the frame where players draw captions.
-    + area("toolbar/link.svg", "Full changelog", [
+    area("toolbar/link.svg", "Full changelog", [
         '<span class="url">jupyterlab.readthedocs.io/en/stable/<br>getting_started/changelog.html</span>',
-    ])
-    + "</div>"
-)
+    ]),
+])
 
 # Each line gives the problem or the benefit first, then the change. Lines do not read setting
 # names or what the screen already shows: an opt-in feature starts with that, an opt-out one ends with it.
@@ -279,7 +223,7 @@ SEQUENCE = [
          {"id": "race_2", "text": "JupyterLab 4.7 shows them in about a second. 4.6 took nine times longer."},
      ]},
 
-    {"card": "title", "length": 3.0, "line": "What's new", "music_hit": True},
+    {"card": "title", "length": 3.0, "version": "4.7", "line": "What's new", "caption": "JupyterLab 4.7: highlights of the release", "music_hit": True},
 
     {"take": "viewonly", "from": "beat:open-0.2", "to": "beat:copy+2.0", "chapter": "Notebooks",
      "kicker": "Notebook", "title": "Read-only files open view-only",
@@ -416,7 +360,7 @@ def main():
     seq = json.loads(json.dumps(SEQUENCE).replace("RACE46", race46).replace("RACE47", race47))
     if "--nb-lite" in sys.argv:
         seq = with_nb_lite(seq)
-    edit = {"fps": 60, "preview_fps": 30, "bpm": 90, "clicks": True,
+    edit = {"work": str(WORK), "fps": 60, "preview_fps": 30, "bpm": 90, "clicks": True,
             # CC0: "Intergalactic Journey" by spinmeister, https://ccmixter.org/files/spinmeister/21067
             "music": str(WORK / "music/intergalactic-journey.wav"),
             "voice": str(WORK / "voice" / voice), "duck": 0.55, "music_gain": 0.32, "sequence": seq}

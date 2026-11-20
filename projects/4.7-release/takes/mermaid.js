@@ -1,6 +1,6 @@
 'use strict';
 // Mermaid diagrams are drawn again when the theme changes.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'mermaid',

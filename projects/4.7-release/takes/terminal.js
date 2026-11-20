@@ -1,7 +1,7 @@
 'use strict';
 // The Running panel shows the title that a program sets for its terminal.
-const C = require('../common');
-const { BASE } = require('../paths');
+const C = require('../../../harness/common');
+const { BASE } = require('../../../harness/paths');
 
 module.exports = {
   name: 'terminal',

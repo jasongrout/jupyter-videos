@@ -1,32 +1,40 @@
-# Jupyter release video
+# Jupyter videos
 
-The tools that made the release video of JupyterLab 4.7, Notebook 7.7 and JupyterLite 0.9. Every shot is a script that plays a live JupyterLab in Chromium while a recorder captures it. A narrator voice reads lines tied to moments of the takes, and a cut tool renders the video frame by frame: camera, pointer, key caps, titles, cards, captions, music. So a shot can be recorded again from a new build in a minute, and the whole video can be cut again after any change.
+Tools to record, narrate and cut videos of Jupyter apps: release videos, and short clips for the documentation. Every shot is a script that plays a live JupyterLab in Chromium while a recorder captures it. A cut tool renders the video frame by frame: camera, pointer, key caps, titles, cards, captions and music, or a silent clip in which the app fills the frame. So a shot can be recorded again from a new build in a minute, and a video or a clip can be cut again after any change.
 
-[docs/4.7/](docs/4.7/) is the record of the 4.7 video: its [plan](docs/4.7/plan.md), its [narration](docs/4.7/script.md), the research behind it, and the brief of its first critique.
+## Projects
+
+A video, or a set of clips, is a project in `projects/<name>/`: its take scripts in `takes/`, an `edit.py` that writes its edit files, and its notes. What a project makes goes to `work/<name>/`.
+
+| Project | What it makes |
+| --- | --- |
+| [`4.7-release`](projects/4.7-release/) | The release video of JupyterLab 4.7, Notebook 7.7 and JupyterLite 0.9, with its plan, narration, research and critique brief |
+| [`docs`](projects/docs/) | Clips for the JupyterLab documentation, such as the animations of the 4.7 changelog |
 
 ## How a video is made
 
-1. **Servers.** One JupyterLab server per version on its own port, with its own settings, all serving one folder of demo files about weather stations (`setup/`).
-2. **Takes.** A take script (`harness/takes/`) prepares the page, then plays the shot like a person: eased pointer moves, clicks, typing. The recorder writes the screencast to `raw.mp4`, a timeline of marks (beats, focus boxes) and a log of every pointer and key event. The page draws no pointer: the cut draws it from the log.
-3. **Edit.** `edit/make_edit.py` writes the edit file: the cards, the segments of takes between beats, the spans that play faster, the titles, and the narration lines, each tied to a beat.
+1. **Servers.** One JupyterLab server per version on its own port, with its own settings, all serving one folder of demo files about weather stations (`setup/`). The projects share the servers.
+2. **Takes.** A take script prepares the page, then plays the shot like a person: eased pointer moves, clicks, typing. The recorder writes the screencast to `raw.mp4`, a timeline of marks (beats, focus boxes) and a log of every pointer and key event. The page draws no pointer: the cut draws it from the log.
+3. **Edit.** The project's `edit.py` writes the edit file: the cards, the segments of takes between beats, the spans that play faster, the titles, and the narration lines, each tied to a beat. `cut/cards.py` builds the cards that any project can use: an opening card beside a tilted app, a card of areas, the end card with install commands, support and credits, and a one-line card.
 4. **Voice.** `voice/el_voice.py` voices the lines with ElevenLabs through the audio API of OpenRouter: the 4.7 video used the voice Matilda on `elevenlabs/eleven-v4`, for $0.70 with nine voice samples. `voice/voice.py` voices drafts with Piper, a speech model that runs locally. `voice/stt.py` transcribes the clips back to text, to catch words that the voice reads wrongly.
 5. **Cut.** `cut/cut.py` renders 1920x1080 at 60 fps. A spring camera follows the focus boxes, and the cut draws the pointer and key caps, renders the cards and titles from HTML with Chromium, ducks the music under the voice, normalizes the loudness to -14 LUFS, and writes captions (`.srt`) and chapters next to the video.
+
+A **clip** for the documentation skips the voice and the music: `cut/cut.py` with `--clip`, or an edit file with `"clip"` settings, renders the take, or a crop of it, to fill the frame, with no cards, titles or badges, and writes a GIF, WebM or MP4 at the width of a docs page. Any shot of a video can become a clip with `--clip --only <index of the shot>`.
 
 ## Layout
 
 | Folder | What is in it |
 | --- | --- |
-| `harness/` | `run_take.js` records one take, `run_takes.sh` several; `rv.js` holds the helpers of the takes, `common.js` the JupyterLab ones; `takes/` has one script per shot, `probes/` the scripts that checked the app before a take, `recorder/` the screen recorder and the pointer and keyboard driver |
-| `cut/` | `cut.py` and the overlay renderer, the CSS of the cards, the fonts, the JupyterLab wordmark; `sheet.py`, `takesheet.py` and `sample.py` draw frames for checks; `music.py` writes a placeholder music bed |
-| `edit/` | `make_edit.py`, with the narration, the cards and the order of the shots; the contributors of the end card |
+| `harness/` | `run_take.js` records one take, `run_takes.sh` several takes of a project; `rv.js` holds the helpers of the takes, `common.js` the JupyterLab ones; `probes/` the scripts that checked the app before a take; `recorder/` the screen recorder and the pointer and keyboard driver |
+| `cut/` | `cut.py`, `cards.py` and the overlay renderer, the CSS of the cards, the fonts, the JupyterLab wordmark; `sheet.py`, `takesheet.py` and `sample.py` draw frames for checks; `music.py` writes a placeholder music bed |
 | `voice/` | ElevenLabs through OpenRouter, Piper, and the transcription check |
 | `setup/` | the server script and its config, a build of `main` without an install, the demo files, the settings of the takes, the kernel of the AI shot |
 | `ai/` | the local model of the AI shot: an OpenAI-compatible server, the speed measure of its answer, a benchmark of models |
-| `tools/` | the PRs of a milestone, the split of first-time and returning contributors, the narration script from a cut |
-| `docs/` | the plan, the narration and the research of each video |
-| `.agents/skills/` | `release-video` (the steps and the lessons) and `video-critic` (a critique of a cut by a background agent), for any coding agent; `AGENTS.md` lists them, and `.claude` and `CLAUDE.md` link to the same files for Claude Code |
+| `tools/` | the PRs of a milestone, and the split of first-time and returning contributors of a release |
+| `projects/` | one folder per video or set of clips |
+| `.agents/skills/` | `release-video`, `docs-clips` and `video-critic`; `AGENTS.md` lists them |
 
-Everything that the tools make goes to `work/` (or `$RV_WORK`): takes, voice clips, music, rendered overlays, edit files and videos. The servers' folders go to `work/runtime/` (or `$RV_BASE`). `env.example` lists every setting.
+The servers' folders go to `work/runtime/` (or `$RV_BASE`), and each project's takes, voice clips, music, overlays, edit files and videos to `work/<project>/` (or `$RV_WORK`). `env.example` lists every setting.
 
 ## Requirements
 
@@ -37,7 +45,7 @@ Everything that the tools make goes to `work/` (or `$RV_WORK`): takes, voice cli
 - For the AI shot: llama-cpp-python, huggingface_hub, and a GGUF model (Gemma 4 E4B for 4.7).
 - For narration: an OpenRouter key in `OPENROUTER_API_KEY`, or Piper and a Piper voice.
 
-## Making the 4.7 video
+## Setting up
 
 ```bash
 npm install && npm run browser
@@ -56,35 +64,13 @@ setup/start_server.sh 4.6.6 8961
 setup/start_server.sh 4.7.0b2 8962
 setup/start_server.sh nb77 8964
 setup/add_data_kernel.sh 4.7.0b2 /path/to/python-with-pandas
-
-# Takes: on a quiet machine, one at a time, with no render running.
-harness/run_takes.sh 8963 undo help lock viewonly mathsearch csv palette reorder terminal tabs a11y math rkeys sources mermaid
-harness/run_takes.sh 0 lite-extensions   # the JupyterLite docs demo: retry when a chunk fails to load
-RV_NAME=stream-46f RV_WIDTH=960 RV_HEIGHT=540 RV_DSF=1.5 node harness/run_take.js harness/takes/stream.js 8961
-RV_NAME=stream-47d RV_WIDTH=960 RV_HEIGHT=540 RV_DSF=1.5 node harness/run_take.js harness/takes/stream.js 8962
-node harness/run_take.js harness/takes/nb-help.js 8964
-
-# The AI shot: a local model behind an OpenAI-compatible endpoint, then the speed of its answer without the recorder.
-MODEL=$(python -c 'from huggingface_hub import hf_hub_download as d; print(d("ggml-org/gemma-4-E4B-it-GGUF", "gemma-4-E4B-it-Q4_0.gguf"))')
-setsid python ai/local_llm_server.py "$MODEL" gemma-4-e4b 8080 > work/llm-server.log 2>&1 < /dev/null &
-node harness/run_take.js harness/takes/ai-local.js 8962
-python ai/llm_marks.py work/takes/ai-local
-
-# Music: "Intergalactic Journey" by spinmeister (CC0), from https://ccmixter.org/files/spinmeister/21067
-mkdir -p work/music && ffmpeg -i <downloaded file> work/music/intergalactic-journey.wav
-
-# Edit, voice and cut.
-python edit/make_edit.py work/edits/cut.json --nb-lite --voice el-v4-matilda
-python voice/el_voice.py work/edits/cut.json work/voice/el-v4-matilda --voice matilda
-python cut/cut.py work/edits/cut.json work/out/cut.mp4 --stills 1.0   # plans the cut and prints its length
-python cut/cut.py work/edits/cut.json work/out/cut.mp4                # 60 fps; --preview renders at 30 fps
 ```
 
-Without `--nb-lite`, `make_edit.py` writes the JupyterLab cut. Until the final releases, `TESTING = True` in `edit/make_edit.py` makes the voice say that the releases are available for testing, and the end card give the commands that install the betas.
+Then follow the README of the project: [4.7-release](projects/4.7-release/README.md) or [docs](projects/docs/README.md).
 
 ## Third-party parts
 
 - `cut/fonts/`: Source Sans 3 and Source Code Pro, under the SIL Open Font License (the licenses are next to the fonts).
 - `cut/jupyterlab-wordmark.svg` is JupyterLab's wordmark, and the cards read JupyterLab's icons from a checkout; both are under JupyterLab's BSD 3-Clause license.
 - `harness/recorder/` comes from the author's whybook project (see its README).
-- The music is not in this repository: download it from the link above.
+- The music of the 4.7 video is not in this repository: its project README links it.

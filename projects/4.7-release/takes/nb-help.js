@@ -1,6 +1,6 @@
 'use strict';
 // Notebook 7.7: help from object? opens in a panel below the notebook, by default.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'nb-help',

@@ -6,7 +6,7 @@
 set -euo pipefail
 R="${JUPYTERLAB_SRC:?set JUPYTERLAB_SRC to a JupyterLab checkout with node_modules}"
 REF=${1:?ref}
-C=${2:-${RV_BASE:-${RV_WORK:-$(cd "$(dirname "$0")/.." && pwd)/work}/runtime}/main}
+C=${2:-${RV_BASE:-$(cd "$(dirname "$0")/.." && pwd)/work/runtime}/main}
 mkdir -p "$(dirname "$C")"
 mkdir "$C"
 git -C "$R" archive "$REF" | tar -xm -C "$C"

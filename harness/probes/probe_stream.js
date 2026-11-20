@@ -1,7 +1,7 @@
 'use strict';
 // The race without the recorder: node probe_stream.js <port> -> the times of one run.
 const { startTake } = require('../rv');
-const scenario = require('../takes/stream.js');
+const scenario = require('../../projects/4.7-release/takes/stream.js');
 (async () => {
   const port = Number(process.argv[2]);
   const take = await startTake({ name: 'probe-' + port, port, width: 960, height: 540, dsf: 1 });

@@ -1,11 +1,15 @@
 'use strict';
 // Record one take: node run_take.js <scenario module> [port]
 // The module exports { name, port?, width?, height?, dsf?, setup(take), run(take) }.
+// A take script in projects/<project>/takes/ records into that project's work folder.
 const path = require('path');
+
+const file = path.resolve(process.argv[2]);
+const project = file.match(/[\\/]projects[\\/]([^\\/]+)[\\/]takes[\\/]/);
+if (project && !process.env.RV_PROJECT) process.env.RV_PROJECT = project[1];
 const { startTake } = require('./rv');
 
 (async () => {
-  const file = path.resolve(process.argv[2]);
   const scenario = require(file);
   const port = Number(process.argv[3] || scenario.port || 8963);
   const opts = { name: scenario.name, port, seed: scenario.seed };

@@ -2,6 +2,12 @@
 
 Usage:
   python cut.py <edit.json> <out.mp4> [--preview] [--only i,j] [--stills t1,t2,...] [--no-audio]
+  python cut.py <edit.json> <out.gif|.webm|.mp4> --clip [--only i]
+
+A clip is a short silent video for documentation: the app fills the frame, with no cards, titles, badges or
+sound. The edit file's "clip" settings ask for one too: {"crop": [x, y, w, h] in CSS px of the take, "width": 960,
+"fps": 10, "format": "gif", "zoom": false}. The pointer, its clicks and the key caps stay, and a span that
+plays faster has no badge.
 
 The edit file lists the items of the video in order: cards (rendered from
 HTML) and segments of takes. A take is a raw screen recording of a live
@@ -66,6 +72,8 @@ SPOT_LEAD = 0.1  # s before the action that ends a spotlight
 SPOT_FADE = 0.15  # s
 LINE_GAP = 0.3  # s between two narration lines of a shot
 KEYS_BOTTOM = 216  # px from the bottom edge to the key caps: two caption lines fit below
+KEYS_SCALE = 1.0  # a clip narrower than 1920 px draws the key caps smaller
+CLIP = None  # the settings of a clip, when the cut makes one
 
 
 def ease_out_cubic(u):
@@ -488,6 +496,8 @@ class Segment:
         cam = camera_for(box_s, min(current.get("zoom", 1.8), self.item.get("zoom_cap", ZOOM_CAP)))
         spot_s = stage_box(self.take, current["box"], current.get("pad", 12))
         spot = spot_s if current.get("spot") and s < current.get("spot_until", 1e9) else None
+        if CLIP is not None and not CLIP.get("zoom"):
+            cam = REST
         return cam, spot
 
     def camera_track(self):
@@ -562,6 +572,7 @@ class Compositor:
         self.hotspot = (2 * 8, 2 * 8)  # the tip, at (2, 2) of the 24 x 24 box drawn at 8x
         self.cursor_h = 24 * 8
         self._cursor_cache = {}
+        self._scaled = {}
 
     def cursor_at(self, height):
         key = int(round(height * 2))
@@ -655,13 +666,15 @@ class Compositor:
             if lab["t"] <= s <= end + 0.25:
                 n = sum(1 for t in lab["steps"] if t <= s)
                 im = self.overlays.get(lab["overlays"][max(0, n - 1)])
+                if KEYS_SCALE != 1.0:
+                    im = self.scaled(im)
                 a = 1.0 if s <= end else 1 - (s - end) / 0.25
                 a *= ease_out_cubic((s - lab["t"]) / 0.12)
                 # "keys_x" moves the block off content that looks like key caps, such as the shortcuts table.
                 kx = seg.item.get("keys_x", 0.5)
                 self.paste(frame, im, (int(W * kx - im.width / 2), H - im.height - KEYS_BOTTOM), a)
         # The title band covers what a zoomed window shows above the window's place at rest.
-        if wy < BAND:
+        if BAND and wy < BAND:
             frame.paste(STAGE_RGB, (0, 0, W, BAND))
         if seg.title_key:
             im = self.overlays.get(seg.title_key)
@@ -680,6 +693,13 @@ class Compositor:
                 pos = (int(R0[0] + R0[2] - im.width), 40) if where == "top-right" else (int((W - im.width) / 2), H - im.height - 40)
                 self.paste(frame, im, pos, fade)
         return frame
+
+    def scaled(self, im):
+        key = id(im)
+        if key not in self._scaled:
+            size = (max(1, int(im.width * KEYS_SCALE)), max(1, int(im.height * KEYS_SCALE)))
+            self._scaled[key] = im.resize(size, Image.LANCZOS)
+        return self._scaled[key]
 
     @staticmethod
     def paste(frame, im, pos, alpha=1.0):
@@ -705,7 +725,7 @@ def card_html(item):
     kind = item["card"]
     if kind == "title":
         return ('<div class="stage"></div><div class="card"><div class="lockup">' + wordmark(760) +
-                '<div class="ver">4.7</div></div>'
+                f'<div class="ver">{esc(item.get("version", ""))}</div></div>'
                 f'<div class="line">{esc(item.get("line", ""))}</div></div>')
     if kind == "html":
         return '<div class="stage"></div>' + item["html"].replace("WORDMARK", wordmark(560))
@@ -1403,6 +1423,53 @@ def build_audio(parts, edit, fps, work):
 # ---------------------------------------------------------------- main
 
 
+def setup_clip(items, clip):
+    """Lay out a clip: the take's viewport, or a crop of it in CSS px, fills the frame. Returns the parts it keeps."""
+    global W, H, R0, BAND, FOCUS_AREA, REST, KEYS_BOTTOM, KEYS_SCALE, CLIP
+    kept = []
+    for it in items:
+        if "take" not in it:
+            print("clip: leaves out " + ("card " + it["card"] if "card" in it else "the race"))
+            continue
+        it = {k: v for k, v in it.items() if k not in ("title", "kicker", "sub", "labels", "say", "chapter")}
+        it["speed"] = [dict(sp, badge=False) for sp in it.get("speed", [])]
+        kept.append(it)
+    if not kept:
+        sys.exit("clip: the edit has no segment of a take")
+    take = Take(kept[0]["take"])
+    x, y, w, h = clip.get("crop") or [0, 0, take.css_w, take.css_h]
+    W = min(1920, int(round(w * take.dsf / 2)) * 2)
+    H = int(round(W * h / w / 2)) * 2
+    k = W / w
+    R0 = (-x * k, -y * k, take.css_w * k, take.css_h * k)
+    BAND = 0
+    FOCUS_AREA = (0.0, 0.0, float(W), float(H))
+    REST = (W / 2, H / 2, 1.0)
+    KEYS_BOTTOM = 32
+    KEYS_SCALE = max(0.6, W / 1920)
+    CLIP = clip
+    return kept
+
+
+def export_clip(render, out, clip):
+    """Write the clip in its format, at its width and frame rate: GIF, WebM or MP4."""
+    fmt = clip.get("format") or Path(out).suffix.lstrip(".") or "gif"
+    width = int(clip.get("width", 960))
+    fps = clip.get("fps", 10 if fmt == "gif" else 30)
+    scale = f"fps={fps},scale={width}:-2:flags=lanczos"
+    if fmt == "gif":
+        args = ["-vf", f"{scale},split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle",
+                "-loop", "0"]
+    elif fmt == "webm":
+        args = ["-vf", scale, "-c:v", "libvpx-vp9", "-crf", "34", "-b:v", "0", "-row-mt", "1", "-an"]
+    elif fmt == "mp4":
+        args = ["-vf", scale + ",format=yuv420p", "-c:v", "libx264", "-crf", "20", "-preset", "slow", "-an", "-movflags", "+faststart"]
+    else:
+        sys.exit(f"clip: unknown format {fmt}")
+    subprocess.run([FFMPEG, "-v", "error", "-y", "-i", str(render), *args, out], check=True)
+    print(f"wrote {out}: {fmt}, {width} px wide, {fps} fps, {Path(out).stat().st_size / 1e6:.2f} MB")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("edit")
@@ -1412,14 +1479,28 @@ def main():
     ap.add_argument("--stills", default="")
     ap.add_argument("--threads", type=int, default=6)
     ap.add_argument("--no-audio", action="store_true")
+    ap.add_argument("--clip", action="store_true", help="a short silent clip for documentation (see the docstring)")
     args = ap.parse_args()
     edit = json.loads(Path(args.edit).read_text())
+    # The project's work folder holds its takes and the rendered overlays.
+    global WORK, TAKES, PARTS
+    if edit.get("work"):
+        WORK = Path(edit["work"])
+        TAKES = Path(os.environ.get("RV_TAKES", WORK / "takes"))
+        PARTS = WORK / "parts"
+    clip = edit.get("clip")
+    if clip is None and args.clip:
+        clip = {}
     fps = edit.get("preview_fps", 30) if args.preview else edit.get("fps", 60)
+    if clip is not None:
+        fps = 30
     quality = "preview" if args.preview else "final"
     items = edit["sequence"]
     if args.only:
         keep = {int(i) for i in args.only.split(",")}
         items = [it for i, it in enumerate(items) if i in keep]
+    if clip is not None:
+        items = setup_clip(items, clip)
 
     overlays = Overlays()
     overlays.add("stage", '<div class="stage"></div>', W, H)
@@ -1439,11 +1520,11 @@ def main():
         bg.paste(background, (0, 0))
         background = bg
     comp = Compositor(overlays, background)
-    if edit.get("voice"):
+    if edit.get("voice") and clip is None:
         voice_dir = (Path(args.edit).parent / edit["voice"]).resolve()
         edit["_voice_dir"] = voice_dir
         place_lines(parts, voice_dir, fps)
-    if edit.get("bpm"):
+    if edit.get("bpm") and clip is None:
         snap_to_beats(parts, edit["bpm"], fps)
     total = sum(p.frames for p in parts)
     for p in parts:
@@ -1460,6 +1541,7 @@ def main():
         plan.append({"start": round(t, 3), "length": round(p.frames / fps, 3),
                      "what": it.get("take") or ("race" if isinstance(p, Race) else "card " + it.get("card", "")),
                      "kicker": it.get("kicker"), "title": it.get("title"), "sub": it.get("sub"), "chapter": it.get("chapter"),
+                     "caption": it.get("caption"),
                      "lines": [{"id": i, "start": round(t + a, 3), "length": d, "text": x} for i, a, d, x in getattr(p, "lines", [])],
                      "keys": [{"key": lab["key"], "at": round(t + output_time(p, lab["t"]), 2)} for lab in getattr(p, "keys", [])
                               if output_time(p, lab["t"]) is not None]})
@@ -1483,10 +1565,11 @@ def main():
     for row in ([] if spoken else plan):
         text = [x for x in (row.get("title"), row.get("sub")) if x]
         if row["what"] == "card title":
-            text = ["JupyterLab 4.7: highlights of the release"]
+            text = [row["caption"]] if row.get("caption") else []
         if text:
             cues.append(f"{len(cues) + 1}\n{stamp(row['start'] + 0.1)} --> {stamp(row['start'] + row['length'] - 0.05)}\n" + "\n".join(text) + "\n")
-    Path(args.out + ".srt").write_text("\n".join(cues))
+    if clip is None:
+        Path(args.out + ".srt").write_text("\n".join(cues))
 
     if args.stills == "auto":
         # Three frames per part: just in, the middle, just before the end.
@@ -1506,7 +1589,9 @@ def main():
 
     work = Path(args.out + ".parts")
     work.mkdir(parents=True, exist_ok=True)
-    audio = None if args.no_audio else build_audio(parts, edit, fps, work)
+    audio = None if args.no_audio or clip is not None else build_audio(parts, edit, fps, work)
+    # A clip is rendered as an MP4 at full size first, then written in its format.
+    video = str(work / "render.mp4") if clip is not None else args.out
     audio_in = ["-i", str(audio)] if audio else []
     audio_out = ["-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "192k", "-ar", "48000"] if audio else []
     encoder = subprocess.Popen(
@@ -1514,7 +1599,7 @@ def main():
          "-vf", "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709",
          "-c:v", "libx264", "-preset", "veryfast" if args.preview else "slow", "-crf", "22" if args.preview else "16",
          "-profile:v", "high", "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
-         "-color_range", "tv", *audio_out, "-movflags", "+faststart", args.out],
+         "-color_range", "tv", *audio_out, "-movflags", "+faststart", video],
         stdin=subprocess.PIPE, bufsize=1 << 22)
     pool = ThreadPoolExecutor(args.threads)
     pending = deque()
@@ -1539,7 +1624,10 @@ def main():
     encoder.stdin.close()
     encoder.wait()
     elapsed = time.time() - started
-    print(f"wrote {args.out}: {done} frames in {elapsed:.0f} s ({done / max(elapsed, 1e-3):.1f} fps)")
+    print(f"wrote {video}: {done} frames in {elapsed:.0f} s ({done / max(elapsed, 1e-3):.1f} fps)")
+    if clip is not None:
+        export_clip(video, args.out, clip)
+        return
     Path(args.out + ".chapters.txt").write_text(
         "".join(f"{int(t // 60)}:{int(t % 60):02d} {name}\n" for t, name in chapters))
 

@@ -1,6 +1,6 @@
 'use strict';
 // object? opens its help in a panel below the notebook.
-const C = require('../common');
+const C = require('../../../harness/common');
 
 module.exports = {
   name: 'help',

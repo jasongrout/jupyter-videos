@@ -9,7 +9,7 @@ module.exports = {
     await lab.openFile('data/measurements.csv');
     await page.waitForSelector('.jp-CSVViewer');
     // The screencast does not capture the native popup of a <select>, so the menu is drawn in the page.
-    await page.addStyleTag({ content: require('../picker-css') });
+    await page.addStyleTag({ content: require('../../../harness/picker-css') });
     await page.waitForTimeout(1200);
     await take.H.place(page, 1150 * take.k, 650 * take.k);
   },

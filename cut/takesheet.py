@@ -1,6 +1,6 @@
 """A contact sheet of a take: one frame after each beat and focus mark.
 
-Usage: python takesheet.py <take name> [<out.png>] [--after 0.4]
+Usage: python takesheet.py <take folder or name> [<out.png>] [--after 0.4]
 """
 
 import json
@@ -27,9 +27,10 @@ def frame_at(take_dir, t, width=720):
 
 def main():
     name = sys.argv[1]
-    out = Path(sys.argv[2]) if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else TAKES / name / "sheet.png"
+    # A take by its folder, or by its name in $RV_TAKES.
+    d = Path(name) if Path(name).is_dir() else TAKES / name
+    out = Path(sys.argv[2]) if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else d / "sheet.png"
     after = float(sys.argv[sys.argv.index("--after") + 1]) if "--after" in sys.argv else 0.4
-    d = TAKES / name
     marks = [json.loads(l) for l in (d / "raw.mp4.timeline.jsonl").read_text().splitlines() if l.strip()]
     picks = [m for m in marks if m["kind"] in ("beat", "focus")]
     stop = next(m for m in marks if m["kind"] == "stop")

@@ -1,6 +1,6 @@
 # JupyterLab 4.7 release video: narration
 
-This is the voice-over of the combined cut, one section per shot, with the time each line starts. "The point 7 releases" names JupyterLab 4.7 and Notebook 7.7 together. The source is `edit/make_edit.py`.
+This is the voice-over of the combined cut, one section per shot, with the time each line starts. "The point 7 releases" names JupyterLab 4.7 and Notebook 7.7 together. The source is `edit.py` in this folder.
 
 ## 0:00 Faster output
 

@@ -1,7 +1,7 @@
 'use strict';
 // The streamed output race: 1,000 log lines with links (the case of #16957).
 // Recorded once per server: RV_NAME=stream-46 on 4.6.6, RV_NAME=stream-47 on 4.7.
-const C = require('../common');
+const C = require('../../../harness/common');
 const N = 1000;
 const LAST = `tmp/${String(N).padStart(4, '0')}.csv`;
 
